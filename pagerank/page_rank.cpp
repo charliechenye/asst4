@@ -69,7 +69,7 @@ void pageRank(Graph g, double* solution, double damping, double convergence)
     double global_diff = 0.0;
     double no_neighbor_node_contribution = 0.0;
 
-    #pragma omp parallel for reduction(+:noedges)
+    #pragma omp parallel for reduction(+:no_neighbor_node_contribution)
     for(int i = 0; i < numNodes; ++i) {
       if (outgoing_size(g, i) == 0) {
         // node is a sink
