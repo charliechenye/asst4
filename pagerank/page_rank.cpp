@@ -25,8 +25,13 @@ void pageRank(Graph g, double* solution, double damping, double convergence)
 
   int numNodes = num_nodes(g);
   double equal_prob = 1.0 / numNodes;
+
+  double* last_iteration = new double[numNodes];
+  
+  #pragma omp parallel for
   for (int i = 0; i < numNodes; ++i) {
     solution[i] = equal_prob;
+    last_iteration[i] = equal_prob;
   }
   
   
@@ -58,4 +63,41 @@ void pageRank(Graph g, double* solution, double damping, double convergence)
      }
 
    */
+  bool has_converged = false;
+
+  while (!has_converged) {
+    double global_diff = 0.0;
+    double no_neighbor_node_contribution = 0.0;
+
+    #pragma omp parallel for reduction(+:noedges)
+    for(int i = 0; i < numNodes; ++i) {
+      if (outgoing_size(g, i) == 0) {
+        // node is a sink
+        no_neighbor_node_contribution += last_iteration[i] / numNodes;
+      }
+
+      double in_neighbor_contribution = 0.0;
+      const Vertex* start = incoming_begin(g, i);
+      const Vertex* end = incoming_end(g, i);
+
+      for (const Vertex* v = start; v != end; v ++) {
+        in_neighbor_contribution += last_iteration[*v] / outgoing_size(g, *v);
+      }
+
+      solution[i] = damping * in_neighbor_contribution + (1.0 - damping) / numNodes;
+    }
+
+    no_neighbor_node_contribution *= damping;
+
+    #pragma omp parallel for reduction(+:global_diff)
+    for(int i = 0; i < numNodes; ++i) { 
+      solution[i] += no_neighbor_node_contribution;
+      global_diff += std::abs(solution[i] - last_iteration[i]);
+      last_iteration[i] = solution[i];
+    }
+
+    has_converged = (global_diff < convergence);
+  }
+
+  delete last_iteration;
 }
