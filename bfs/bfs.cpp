@@ -92,8 +92,7 @@ void bfs_top_down(Graph graph, solution* sol) {
 
     const int vertex_set_list_size = max_threads+1;
 
-    vertex_set* frontier_list;
-    frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
+    vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
     vertex_set_list_init(frontier_list, vertex_set_list_size, graph->num_nodes);
 
     // initialize all nodes to NOT_VISITED
@@ -124,16 +123,15 @@ void bfs_top_down(Graph graph, solution* sol) {
     delete frontier_list;
 }
 
-inline void bottom_up_step(
+inline int bottom_up_step(
     Graph g,
-    vertex_set*& frontier_list,
     int* current_frontier,
     int* next_frontier,
-    int* distances,
-    const int max_threads)
+    int* distances)
 {
+    int new_node_count = 0;
     // Run one step in bottom up approach
-    #pragma omp parallel for 
+    #pragma omp parallel for reduction(+:new_node_count)
     // TODO: schedule(dynamic)
     for(int node = 0; node < g->num_nodes; node ++) {
         if (distances[node] == NOT_VISITED_MARKER) {
@@ -147,11 +145,14 @@ inline void bottom_up_step(
                 if (current_frontier[neighbor] == 1) {
                     distances[node] = distances[neighbor] + 1;
                     next_frontier[node] = 1;
+                    new_node_count += 1;
                     break;
                 }
             }
         }
-    }  
+    } 
+
+    return new_node_count; 
 }
 
 void bfs_bottom_up(Graph graph, solution* sol)
@@ -166,7 +167,28 @@ void bfs_bottom_up(Graph graph, solution* sol)
     //
     // As was done in the top-down case, you may wish to organize your
     // code by creating subroutine bottom_up_step() that is called in
-    // each step of the BFS process.
+    // each step of the BFS process.    
+    int* current_frontier = new int[graph->num_nodes]();    // force initialization to 0
+    int frontier_count = 1;
+    current_frontier[ROOT_NODE_ID] = 1;
+
+    while (frontier_count != 0) {
+
+#ifdef VERBOSE
+        double start_time = CycleTimer::currentSeconds();
+#endif
+        int* next_frontier = new int[graph->num_nodes]();    // force initialization to 0
+        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances);
+        // swap pointer
+        int * tmp = current_frontier;
+        current_frontier = next_frontier;
+        delete tmp;
+#ifdef VERBOSE
+    double end_time = CycleTimer::currentSeconds();
+    printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
+#endif
+    }
+    
 }
 
 void bfs_hybrid(Graph graph, solution* sol)
