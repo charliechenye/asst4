@@ -169,6 +169,10 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // As was done in the top-down case, you may wish to organize your
     // code by creating subroutine bottom_up_step() that is called in
     // each step of the BFS process.    
+
+    int chunk_set = 100000;
+    if (graph->num_nodes <= 1000)
+        chunk_set = 500;
     int* current_frontier = new int[graph->num_nodes]();    // force initialization to 0
     int* next_frontier = new int[graph->num_nodes]();    // force initialization to 0
 
@@ -188,7 +192,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
         double start_time = CycleTimer::currentSeconds();
 #endif
         exploring_distance += 1;
-        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance);
+        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, chunk_set);
         // swap pointer
         int * tmp = current_frontier;
         current_frontier = next_frontier;
