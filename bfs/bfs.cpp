@@ -152,7 +152,7 @@ inline int bottom_up_step(
             }
         }
     } 
-    printf("Step: %-10d %-10d sec\n", exploring_distance, new_node_count);
+    // printf("Step: %-10d %-10d sec\n", exploring_distance, new_node_count);
     return new_node_count; 
 }
 
