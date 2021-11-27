@@ -5,6 +5,7 @@
 #include <string.h>
 #include <cstddef>
 #include <omp.h>
+#include <assert.h>
 
 #include "../common/CycleTimer.h"
 #include "../common/graph.h"
@@ -22,36 +23,35 @@ inline void vertex_set_init(vertex_set* list, int count) {
     vertex_set_clear(list);
 }
 
-inline void vertex_set_list_clear(vertex_set** list_pointer, const int list_size) {
+inline void vertex_set_list_clear(vertex_set*& set_list, const int list_size) {
     #pragma omp parallel for
     for (int i = 0 ; i < list_size; i++){
-        list_pointer[i]->count = 0;
+        set_list[i].count = 0;
     }
 }
 
-inline void vertex_set_list_init(vertex_set** list_pointer, vertex_set* set_list, const int list_size, const int count) {
+inline void vertex_set_list_init(vertex_set*& set_list, const int list_size, const int count) {
     #pragma omp parallel for
     for (int i = 0 ; i < list_size; i++){
-        vertex_set_init(set_list + i, count);
-        list_pointer[i] = set_list + i;
+        vertex_set_init(&set_list[i], count);
     }
 }
 
-// Take one step of "top-down" BFS.  For each vertex on the frontier,
-// follow all outgoing edges, and add all neighboring vertices to the
-// new_frontier.
-void top_down_step(
+inline void top_down_step(
     Graph g,
-    vertex_set* frontier,
-    vertex_set** frontier_list_pointer,
+    vertex_set*& frontier_list,
     int* distances,
+    const int max_threads, 
     const int schedule_chunk = 1000)
 {
-    #pragma omp parallel for schedule(dynamic, schedule_chunk)
-    for (int i=0; i<frontier->count; i++) {
+    // aliasing, frontier_list[max_threads] store the current frontier
+    vertex_set& current_frontier = frontier_list[max_threads];
 
+    // For each thread, write to its own frontier
+    #pragma omp parallel for schedule(dynamic, schedule_chunk)
+    for (int i = 0; i < current_frontier.count; i ++) {
         const int thread_id = omp_get_thread_num();
-        int node = frontier->vertices[i];
+        int node = current_frontier.vertices[i];
 
         int start_edge = g->outgoing_starts[node];
         int end_edge = (node == g->num_nodes - 1)
@@ -64,12 +64,21 @@ void top_down_step(
 
             if (distances[outgoing] == NOT_VISITED_MARKER) {
                 if (__sync_bool_compare_and_swap(distances + outgoing, NOT_VISITED_MARKER, distances[node] + 1)) {
-                    int index = frontier_list_pointer[thread_id]->count++;
-                    frontier_list_pointer[thread_id]->vertices[index] = outgoing;
+                    int current_index = frontier_list[thread_id].count++;
+                    frontier_list[thread_id].vertices[current_index] = outgoing;
                 }
             }
         }
     }
+    // Collect the frontiers
+    // TODO: parallelize with atomic add on total_count
+    int total_count = 0;
+    for (int i = 0; i < max_threads; i ++) {
+        memcpy(current_frontier.vertices + total_count, frontier_list[i].vertices, 
+                frontier_list[i].count * sizeof(int));
+        total_count += frontier_list[i].count;
+    }
+    current_frontier.count = total_count;
 }
 
 // Implements top-down BFS.
@@ -83,19 +92,20 @@ void bfs_top_down(Graph graph, solution* sol) {
     if (graph->num_nodes <= 1000)
         schedule_chunk = 500;
 
-    vertex_set list1;
-    vertex_set_init(&list1, graph->num_nodes);
-    vertex_set* frontier = &list1;
+    const int vertex_set_list_size = max_threads+1;
 
-    vertex_set** frontier_list_pointer = new vertex_set*[max_threads];
-    vertex_set* frontier_set_list = new vertex_set[max_threads];
-    vertex_set_list_init(frontier_list_pointer, frontier_set_list, max_threads, graph->num_nodes);
+    vertex_set* frontier_list;
+    frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
+    vertex_set_list_init(frontier_list, vertex_set_list_size, graph->num_nodes);
 
     // initialize all nodes to NOT_VISITED
     #pragma omp parallel for
     for (int i = 0; i < graph->num_nodes; i ++)
         sol->distances[i] = NOT_VISITED_MARKER;
 
+ 
+    // Alias
+    vertex_set* frontier = &(frontier_list[max_threads]);
     // setup frontier with the root node
     frontier->vertices[frontier->count++] = ROOT_NODE_ID;
     sol->distances[ROOT_NODE_ID] = 0;
@@ -105,29 +115,15 @@ void bfs_top_down(Graph graph, solution* sol) {
 #ifdef VERBOSE
         double start_time = CycleTimer::currentSeconds();
 #endif
-
-        vertex_set_list_clear(frontier_list_pointer, max_threads);
-
-        top_down_step(graph, frontier, frontier_list_pointer, sol->distances, schedule_chunk);
-
+        // Clear all except the last in frontier_list
+        vertex_set_list_clear(frontier_list, max_threads);
+        top_down_step(graph, frontier_list, sol->distances, max_threads, schedule_chunk);
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
     printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
 #endif
-
-        // collect partial results into one frontier list
-        // first into frontier_list_pointer[0]
-        // TODO: parallel with additional variable total_count for aggregator
-        for (int i = 1; i < max_threads; i ++) {
-            memcpy(frontier_list_pointer[0]->vertices + frontier_list_pointer[0]->count, 
-                    frontier_list_pointer[i]->vertices, 
-                    frontier_list_pointer[i]->count * sizeof(int));
-            frontier_list_pointer[0]->count += frontier_list_pointer[i]->count;
-        }
-        vertex_set* tmp = frontier;
-        frontier = frontier_list_pointer[0];
-        frontier_list_pointer[0] = tmp;
     }
+    delete frontier_list;
 }
 
 void bfs_bottom_up(Graph graph, solution* sol)
