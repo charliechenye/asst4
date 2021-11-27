@@ -171,6 +171,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     int* current_frontier = new int[graph->num_nodes]();    // force initialization to 0
     int frontier_count = 1;
     current_frontier[ROOT_NODE_ID] = 1;
+    sol->distances[ROOT_NODE_ID] = 0;
 
     while (frontier_count != 0) {
 
