@@ -63,7 +63,7 @@ void top_down_step(
             int outgoing = g->outgoing_edges[neighbor];
 
             if (distances[outgoing] == NOT_VISITED_MARKER) {
-                if (__sync_bool_compare_and_swap(distance + outgoing, NOT_VISITED_MARKER, distance[node] + 1)) {
+                if (__sync_bool_compare_and_swap(distances + outgoing, NOT_VISITED_MARKER, distances[node] + 1)) {
                     int index = frontier_list_pointer[thread_id]->count++;
                     frontier_list_pointer[thread_id]->vertices[index] = outgoing;
                 }
