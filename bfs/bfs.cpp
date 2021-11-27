@@ -43,6 +43,8 @@ inline void top_down_step(
     int* distances,
     const int max_threads)
 {
+    // Run one step in top down approach
+
     // aliasing, frontier_list[max_threads] store the current frontier
     vertex_set& current_frontier = frontier_list[max_threads];
 
@@ -120,6 +122,36 @@ void bfs_top_down(Graph graph, solution* sol) {
 #endif
     }
     delete frontier_list;
+}
+
+inline void bottom_up_step(
+    Graph g,
+    vertex_set*& frontier_list,
+    int* current_frontier,
+    int* next_frontier,
+    int* distances,
+    const int max_threads)
+{
+    // Run one step in bottom up approach
+    #pragma omp parallel for 
+    // TODO: schedule(dynamic)
+    for(int node = 0; node < g->num_nodes; node ++) {
+        if (distances[node] == NOT_VISITED_MARKER) {
+            //explore all incoming edges to node
+            int start_edge = g->incoming_starts[node];
+            int end_edge = (node == g->num_nodes - 1)
+                               ? g->num_edges
+                               : g->outgoing_starts[node + 1];
+            for (int edge = start_edge; edge < end_edge; edge ++) {
+                int neighbor = g->incoming_edges[edge];
+                if (current_frontier[neighbor] == 1) {
+                    distances[node] = distances[neighbor] + 1;
+                    next_frontier[node] = 1;
+                    break;
+                }
+            }
+        }
+    }  
 }
 
 void bfs_bottom_up(Graph graph, solution* sol)
