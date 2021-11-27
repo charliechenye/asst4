@@ -41,14 +41,13 @@ inline void top_down_step(
     Graph g,
     vertex_set*& frontier_list,
     int* distances,
-    const int max_threads, 
-    const int schedule_chunk = 1000)
+    const int max_threads)
 {
     // aliasing, frontier_list[max_threads] store the current frontier
     vertex_set& current_frontier = frontier_list[max_threads];
 
     // For each thread, write to its own frontier
-    #pragma omp parallel for schedule(dynamic, schedule_chunk)
+    #pragma omp parallel for
     for (int i = 0; i < current_frontier.count; i ++) {
         const int thread_id = omp_get_thread_num();
         int node = current_frontier.vertices[i];
@@ -88,9 +87,6 @@ inline void top_down_step(
 void bfs_top_down(Graph graph, solution* sol) {
 
     const int max_threads {omp_get_max_threads()};
-    int schedule_chunk = 100000;
-    if (graph->num_nodes <= 1000)
-        schedule_chunk = 500;
 
     const int vertex_set_list_size = max_threads+1;
 
@@ -117,7 +113,7 @@ void bfs_top_down(Graph graph, solution* sol) {
 #endif
         // Clear all except the last in frontier_list
         vertex_set_list_clear(frontier_list, max_threads);
-        top_down_step(graph, frontier_list, sol->distances, max_threads, schedule_chunk);
+        top_down_step(graph, frontier_list, sol->distances, max_threads);
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
     printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
