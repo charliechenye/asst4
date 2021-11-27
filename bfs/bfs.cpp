@@ -170,6 +170,12 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // code by creating subroutine bottom_up_step() that is called in
     // each step of the BFS process.    
     int* current_frontier = new int[graph->num_nodes]();    // force initialization to 0
+
+    // initialize all nodes to NOT_VISITED
+    #pragma omp parallel for
+    for (int i = 0; i < graph->num_nodes; i ++)
+        sol->distances[i] = NOT_VISITED_MARKER;
+
     int frontier_count = 1;
     current_frontier[ROOT_NODE_ID] = 1;
     sol->distances[ROOT_NODE_ID] = 0;
