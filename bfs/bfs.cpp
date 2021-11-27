@@ -170,6 +170,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // code by creating subroutine bottom_up_step() that is called in
     // each step of the BFS process.    
     int* current_frontier = new int[graph->num_nodes]();    // force initialization to 0
+    int* next_frontier = new int[graph->num_nodes]();    // force initialization to 0
 
     // initialize all nodes to NOT_VISITED
     #pragma omp parallel for
@@ -187,18 +188,20 @@ void bfs_bottom_up(Graph graph, solution* sol)
         double start_time = CycleTimer::currentSeconds();
 #endif
         exploring_distance += 1;
-        int* next_frontier = new int[graph->num_nodes]();    // force initialization to 0
         frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance);
         // swap pointer
         int * tmp = current_frontier;
         current_frontier = next_frontier;
-        delete tmp;
+        next_frontier = tmp;
+        memset(next_frontier, 0, sizeof(int));
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
     printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
 #endif
     }
-    
+
+    delete current_frontier;
+    delete next_frontier;    
 }
 
 void bfs_hybrid(Graph graph, solution* sol)
