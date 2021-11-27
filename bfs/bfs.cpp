@@ -140,7 +140,7 @@ inline int bottom_up_step(
             int start_edge = g->incoming_starts[node];
             int end_edge = (node == g->num_nodes - 1)
                                ? g->num_edges
-                               : g->outgoing_starts[node + 1];
+                               : g->incoming_starts[node + 1];
             for (int edge = start_edge; edge < end_edge; edge ++) {
                 int neighbor = g->incoming_edges[edge];
                 if (current_frontier[neighbor] == 1) {
