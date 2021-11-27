@@ -127,7 +127,8 @@ inline int bottom_up_step(
     Graph g,
     int* current_frontier,
     int* next_frontier,
-    int* distances)
+    int* distances, 
+    int exploring_distance)
 {
     int new_node_count = 0;
     // Run one step in bottom up approach
@@ -143,7 +144,7 @@ inline int bottom_up_step(
             for (int edge = start_edge; edge < end_edge; edge ++) {
                 int neighbor = g->incoming_edges[edge];
                 if (current_frontier[neighbor] == 1) {
-                    distances[node] = distances[neighbor] + 1;
+                    distances[node] = exploring_distance;
                     next_frontier[node] = 1;
                     new_node_count += 1;
                     break;
@@ -172,14 +173,16 @@ void bfs_bottom_up(Graph graph, solution* sol)
     int frontier_count = 1;
     current_frontier[ROOT_NODE_ID] = 1;
     sol->distances[ROOT_NODE_ID] = 0;
+    int exploring_distance = 0;
 
     while (frontier_count != 0) {
 
 #ifdef VERBOSE
         double start_time = CycleTimer::currentSeconds();
 #endif
+        exploring_distance += 1;
         int* next_frontier = new int[graph->num_nodes]();    // force initialization to 0
-        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances);
+        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance);
         // swap pointer
         int * tmp = current_frontier;
         current_frontier = next_frontier;
