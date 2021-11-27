@@ -128,12 +128,12 @@ inline int bottom_up_step(
     int* current_frontier,
     int* next_frontier,
     int* distances, 
-    int exploring_distance)
+    const int exploring_distance, 
+    const int schedule_chunk = 100000)
 {
     int new_node_count = 0;
     // Run one step in bottom up approach
-    #pragma omp parallel for reduction(+:new_node_count)
-    // TODO: schedule(dynamic)
+    #pragma omp parallel for reduction(+:new_node_count) schedule(dynamic, schedule_chunk)
     for(int node = 0; node < g->num_nodes; node ++) {
         if (distances[node] == NOT_VISITED_MARKER) {
             //explore all incoming edges to node
