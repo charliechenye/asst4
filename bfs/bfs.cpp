@@ -67,7 +67,7 @@ inline void top_down_step(
     vertex_set& current_frontier = frontier_list[max_threads];
 
     // For each thread, write to its own frontier
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for
     for (int i = 0; i < current_frontier.count; i ++) {
         const int thread_id = omp_get_thread_num();
         int node = current_frontier.vertices[i];
@@ -270,7 +270,7 @@ inline int switch_top_bottom(
 
     int* new_node_count = new int[max_threads];
     // Write new frontier to the bool list current_frontier_bool
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for
     for (int i = 0; i < current_frontier.count; i ++) {
         const int thread_id = omp_get_thread_num();
         int node = current_frontier.vertices[i];
