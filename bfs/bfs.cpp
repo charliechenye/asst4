@@ -12,7 +12,8 @@
 
 #define ROOT_NODE_ID 0
 #define NOT_VISITED_MARKER -1
-// #define VERBOSE 1
+//#define VERBOSE 1
+#define SWITCH_THRESHOLD 50
 
 inline void vertex_set_clear(vertex_set* list) {
     list->count = 0;
@@ -248,7 +249,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     delete next_frontier;    
 }
 
-void bfs_hybrid(Graph graph, solution* sol, int switch_threshold = 50)
+void bfs_hybrid(Graph graph, solution* sol)
 {
     // CS149 students:
     //
@@ -309,7 +310,7 @@ void bfs_hybrid(Graph graph, solution* sol, int switch_threshold = 50)
             vertex_set_list_clear(frontier_list, max_threads);
             top_down_step(graph, frontier_list, sol->distances, mem_offset, max_threads);
             frontier_count = frontier->count;
-            if (num_nodes / frontier_count > switch_threshold) {
+            if (num_nodes / frontier_count > SWITCH_THRESHOLD) {
                 // Switch to bottom up approach
                 // Initialize current_frontier list
                 #pragma omp parallel for
