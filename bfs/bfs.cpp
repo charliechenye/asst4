@@ -123,6 +123,12 @@ void bfs_top_down(Graph graph, solution* sol) {
     delete frontier_list;
 }
 
+inline void tracker_list_reset(int* next_frontier_tracker, int list_len) {
+    #pragma omp parallel for
+    for (int i = 0; i < list_len; i ++)
+        next_frontier_tracker[i] = 0;
+}
+
 inline int bottom_up_step(
     Graph g,
     int* current_frontier,
@@ -173,12 +179,16 @@ void bfs_bottom_up(Graph graph, solution* sol)
     int chunk_set = 100000;
     if (graph->num_nodes <= 1000)
         chunk_set = 500;
-    int* current_frontier = new int[graph->num_nodes]();    // force initialization to 0
-    int* next_frontier = new int[graph->num_nodes]();    // force initialization to 0
+
+    const int num_nodes = graph->num_nodes;
+    int* current_frontier = new int[graph->num_nodes];
+    int* next_frontier = new int[graph->num_nodes];
+
+    tracker_list_reset(current_frontier, num_nodes);
 
     // initialize all nodes to NOT_VISITED
     #pragma omp parallel for
-    for (int i = 0; i < graph->num_nodes; i ++)
+    for (int i = 0; i < num_nodes; i ++)
         sol->distances[i] = NOT_VISITED_MARKER;
 
     int frontier_count = 1;
@@ -191,13 +201,13 @@ void bfs_bottom_up(Graph graph, solution* sol)
 #ifdef VERBOSE
         double start_time = CycleTimer::currentSeconds();
 #endif
+        tracker_list_reset(next_frontier, num_nodes);
         exploring_distance += 1;
         frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, chunk_set);
         // swap pointer
         int * tmp = current_frontier;
         current_frontier = next_frontier;
         next_frontier = tmp;
-        memset(next_frontier, 0, sizeof(int));
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
     printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
