@@ -60,12 +60,12 @@ inline void top_down_step(
     int* distances,
     int* mem_offset,
     const int exploring_distance,
-    const int max_threads)
+    const int num_threads)
 {
     // Run one step in top down approach
 
-    // aliasing, frontier_list[max_threads] store the current frontier
-    vertex_set& current_frontier = frontier_list[max_threads];
+    // aliasing, frontier_list[num_threads] store the current frontier
+    vertex_set& current_frontier = frontier_list[num_threads];
 
     // For each thread, write to its own frontier
     #pragma omp parallel for
@@ -93,14 +93,14 @@ inline void top_down_step(
     // Collect the frontiers
     // DONE: parallelize with atomic add on total_count
     int total_count = 0;
-    for (int i = 0; i < max_threads; i ++) {
+    for (int i = 0; i < num_threads; i ++) {
         mem_offset[i] = total_count;
         total_count += frontier_list[i].count;
     }
     current_frontier.count = total_count;
 
     #pragma omp parallel for
-    for (int i = 0; i < max_threads; i ++) {
+    for (int i = 0; i < num_threads; i ++) {
         memcpy(current_frontier.vertices + mem_offset[i], frontier_list[i].vertices, 
                 frontier_list[i].count * sizeof(int));
     }
@@ -112,20 +112,20 @@ inline void top_down_step(
 // distance to the root is stored in sol.distances.
 void bfs_top_down(Graph graph, solution* sol) {
 
-    const int max_threads {omp_get_max_threads()};
-    const int vertex_set_list_size = max_threads + 1;
+    const int num_threads {omp_get_max_threads()};
+    const int vertex_set_list_size = num_threads + 1;
     
     int exploring_distance = 0;
 
-    vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
+    vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first num_threads used for parallel processing, last one used for current_frontier
     vertex_set_list_init(frontier_list, vertex_set_list_size, graph->num_nodes);
 
-    int* mem_offset = new int[max_threads];
+    int* mem_offset = new int[num_threads];
 
     initialize_distances(graph->num_nodes, sol->distances);
 
     // Alias
-    vertex_set* frontier = &(frontier_list[max_threads]);
+    vertex_set* frontier = &(frontier_list[num_threads]);
     // setup frontier with the root node
     frontier->count = 0;
     frontier->vertices[frontier->count++] = ROOT_NODE_ID;
@@ -138,8 +138,8 @@ void bfs_top_down(Graph graph, solution* sol) {
 #endif
         exploring_distance += 1;
         // Clear all except the last in frontier_list
-        vertex_set_list_clear(frontier_list, max_threads);
-        top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, max_threads);
+        vertex_set_list_clear(frontier_list, num_threads);
+        top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, num_threads);
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
     printf("Step %-10d frontier=%-10d %.4f sec\n", exploring_distance, frontier->count, end_time - start_time);
@@ -206,17 +206,17 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // code by creating subroutine bottom_up_step() that is called in
     // each step of the BFS process.    
 
-    const int max_threads {omp_get_max_threads()};
+    const int num_threads {omp_get_max_threads()};
     int chunk_size = 1024;  // assuming 64 byte cache line and 1 byte bool
 
     const int num_nodes = graph->num_nodes;
 
-    while (num_nodes < max_threads * chunk_size) {
+    while (num_nodes < num_threads * chunk_size) {
         chunk_size /= 2;
     }
 
     
-    // printf("# Threads=%-10d\n", max_threads);
+    // printf("# Threads=%-10d\n", num_threads);
     // printf("Chunk size=%-10d\n", chunk_size);
     // printf("# Nodes=%-10d\n", num_nodes);
     
@@ -267,7 +267,7 @@ void bfs_hybrid(Graph graph, solution* sol)
     bool running_top_down = true;
 
     // Shared initialization
-    const int max_threads {omp_get_max_threads()};
+    const int num_threads {omp_get_max_threads()};
     const int num_nodes = graph->num_nodes;
     int exploring_distance = 0;
     int frontier_count = 1;
@@ -275,15 +275,15 @@ void bfs_hybrid(Graph graph, solution* sol)
     initialize_distances(graph->num_nodes, sol->distances);
 
     // Intialize for Top Down approach
-    const int vertex_set_list_size = max_threads + 1;
+    const int vertex_set_list_size = num_threads + 1;
     
-    vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
+    vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first num_threads used for parallel processing, last one used for current_frontier
     vertex_set_list_init(frontier_list, vertex_set_list_size, num_nodes);
 
-    int* mem_offset = new int[max_threads];
+    int* mem_offset = new int[num_threads];
 
     // Alias
-    vertex_set* frontier = &(frontier_list[max_threads]);
+    vertex_set* frontier = &(frontier_list[num_threads]);
     // setup frontier with the root node
     frontier->count = 0;
     frontier->vertices[frontier->count++] = ROOT_NODE_ID;
@@ -291,7 +291,7 @@ void bfs_hybrid(Graph graph, solution* sol)
     // Initialize for Bottom Up approach
     int chunk_size = 1024;  // assuming 64 byte cache line and 1 byte bool
 
-    while (num_nodes < max_threads * chunk_size) {
+    while (num_nodes < num_threads * chunk_size) {
         chunk_size /= 2;
     }
     bool* current_frontier = new bool[graph->num_nodes];
@@ -307,8 +307,8 @@ void bfs_hybrid(Graph graph, solution* sol)
         exploring_distance += 1;
         if (running_top_down) {
         // Clear all except the last in frontier_list
-            vertex_set_list_clear(frontier_list, max_threads);
-            top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, max_threads);
+            vertex_set_list_clear(frontier_list, num_threads);
+            top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, num_threads);
             frontier_count = frontier->count;
             if (frontier_count > 0 && num_nodes / frontier_count < SWITCH_BOTTOM_UP_THRESHOLD) {
                 running_top_down = false;
@@ -327,7 +327,7 @@ void bfs_hybrid(Graph graph, solution* sol)
             if (ALLOW_SWITCH_BACK && frontier_count > 0 && num_nodes / frontier_count > SWITCH_TOP_BOTTOM_THRESHOLD) {
                 running_top_down = true;
                 // Copy current_frontier back to frontier
-                vertex_set_list_clear(frontier_list, max_threads);
+                vertex_set_list_clear(frontier_list, num_threads);
                 #pragma omp parallel for schedule(dynamic, chunk_size)
                 for(int node = 0; node < num_nodes; node ++) {
                     if (next_frontier[node]) {
@@ -338,7 +338,7 @@ void bfs_hybrid(Graph graph, solution* sol)
                 }
                 
                 int total_count = 0;
-                for (int i = 0; i < max_threads; i ++) {
+                for (int i = 0; i < num_threads; i ++) {
                     mem_offset[i] = total_count;
                     total_count += frontier_list[i].count;
                 }
@@ -346,7 +346,7 @@ void bfs_hybrid(Graph graph, solution* sol)
                 frontier->count = frontier_count;
 
                 #pragma omp parallel for
-                for (int i = 0; i < max_threads; i ++) {
+                for (int i = 0; i < num_threads; i ++) {
                     memcpy(frontier->vertices + mem_offset[i], frontier_list[i].vertices, 
                             frontier_list[i].count * sizeof(int));
                 }
