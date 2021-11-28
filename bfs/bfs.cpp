@@ -268,10 +268,11 @@ inline int switch_top_bottom(
     // aliasing, frontier_list[max_threads] store the current frontier
     vertex_set& current_frontier = frontier_list[max_threads];
 
-    int new_node_count = 0;
+    int* new_node_count = new int[max_threads];
     // Write new frontier to the bool list current_frontier_bool
-    #pragma omp parallel for reduction(+:new_node_count)
+    #pragma omp parallel for
     for (int i = 0; i < current_frontier.count; i ++) {
+        const int thread_id = omp_get_thread_num();
         int node = current_frontier.vertices[i];
 
         int start_edge = g->outgoing_starts[node];
@@ -286,13 +287,18 @@ inline int switch_top_bottom(
             if (distances[outgoing] == NOT_VISITED_MARKER) {
                 if (__sync_bool_compare_and_swap(distances + outgoing, NOT_VISITED_MARKER, exploring_distance)) {
                     current_frontier_bool[outgoing] = true;
-                    new_node_count += 1;
+                    new_node_count[thread_id] += 1;
                 }
             }
         }
     }
 
-    return new_node_count;
+    int total_node_count = 0;
+    for (int thread_id = 0; thread_id < max_threads; thread_id ++) {
+        total_node_count += new_node_count[thread_id];
+    }
+
+    return total_node_count;
 }
 
 void bfs_hybrid(Graph graph, solution* sol)
@@ -358,20 +364,20 @@ void bfs_hybrid(Graph graph, solution* sol)
                 is_switch_step = true;
             }
         } else {
-            tracker_list_reset(next_frontier, num_nodes, max_threads, chunk_size);
             if (is_switch_step) {
                 frontier_count = switch_top_bottom(graph, frontier_list, sol->distances, current_frontier, 
                                                     exploring_distance, max_threads);
                 is_switch_step = false;
             } else {
+                tracker_list_reset(next_frontier, num_nodes, max_threads, chunk_size);
                 frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, 
-                                                max_threads, chunk_size);               
+                                                max_threads, chunk_size);          
+                // swap pointer
+                bool * tmp = current_frontier;
+                current_frontier = next_frontier;
+                next_frontier = tmp;          
             }
 
-            // swap pointer
-            bool * tmp = current_frontier;
-            current_frontier = next_frontier;
-            next_frontier = tmp;
         }
 #ifdef VERBOSE
         double end_time = CycleTimer::currentSeconds();
