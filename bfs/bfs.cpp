@@ -41,6 +41,7 @@ inline void top_down_step(
     Graph g,
     vertex_set*& frontier_list,
     int* distances,
+    int* mem_offset,
     const int max_threads)
 {
     // Run one step in top down approach
@@ -75,11 +76,16 @@ inline void top_down_step(
     // TODO: parallelize with atomic add on total_count
     int total_count = 0;
     for (int i = 0; i < max_threads; i ++) {
-        memcpy(current_frontier.vertices + total_count, frontier_list[i].vertices, 
-                frontier_list[i].count * sizeof(int));
+        mem_offset[i] = total_count;
         total_count += frontier_list[i].count;
     }
     current_frontier.count = total_count;
+
+    #pragma omp parallel for
+    for (int i = 0; i < max_threads; i ++) {
+        memcpy(current_frontier.vertices + mem_offset[i], frontier_list[i].vertices, 
+                frontier_list[i].count * sizeof(int));
+    }
 }
 
 // Implements top-down BFS.
@@ -94,6 +100,8 @@ void bfs_top_down(Graph graph, solution* sol) {
 
     vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
     vertex_set_list_init(frontier_list, vertex_set_list_size, graph->num_nodes);
+
+    int* mem_offset = new int[max_threads];
 
     // initialize all nodes to NOT_VISITED
     #pragma omp parallel for num_threads (max_threads) schedule(static, 64)
@@ -114,13 +122,14 @@ void bfs_top_down(Graph graph, solution* sol) {
 #endif
         // Clear all except the last in frontier_list
         vertex_set_list_clear(frontier_list, max_threads);
-        top_down_step(graph, frontier_list, sol->distances, max_threads);
+        top_down_step(graph, frontier_list, sol->distances, mem_offset, max_threads);
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
     printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
 #endif
     }
     delete frontier_list;
+    delete mem_offset;
 }
 
 inline void tracker_list_reset(
