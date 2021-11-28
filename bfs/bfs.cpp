@@ -12,7 +12,7 @@
 
 #define ROOT_NODE_ID 0
 #define NOT_VISITED_MARKER -1
-//#define VERBOSE 1
+// #define VERBOSE 1
 #define SWITCH_THRESHOLD 25
 
 inline void initialize_distances(
@@ -351,6 +351,7 @@ void bfs_hybrid(Graph graph, solution* sol)
     while (frontier_count != 0) {
 
 #ifdef VERBOSE
+        printf("Step %-10d old frontier=%-10d\n", exploring_distance, frontier_count);
         double start_time = CycleTimer::currentSeconds();
 #endif
         exploring_distance += 1;
@@ -381,7 +382,16 @@ void bfs_hybrid(Graph graph, solution* sol)
         }
 #ifdef VERBOSE
         double end_time = CycleTimer::currentSeconds();
-        printf("Step %-10d frontier=%-10d %.4f sec\n", exploring_distance, frontier->count, end_time - start_time);
+        printf("new frontier=%-10d %.4f sec ", frontier_count, end_time - start_time);
+        if (running_top_down) {
+            printf(" Running Top Down Approach\n");
+        } else {
+            if (is_switch_step) {
+                printf(" Running Switch (Top -> Bottom)\n");
+            } else {
+                printf(" Running Bottom Up Approach\n");
+            }
+        }
 #endif
     }
 
