@@ -360,7 +360,7 @@ void bfs_hybrid(Graph graph, solution* sol)
             vertex_set_list_clear(frontier_list, max_threads);
             top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, max_threads);
             frontier_count = frontier->count;
-            if (num_nodes / frontier_count < SWITCH_THRESHOLD) {
+            if (frontier_count > 0 && num_nodes / frontier_count < SWITCH_THRESHOLD) {
                 running_top_down = false;
                 is_switch_step = true;
             }
