@@ -12,7 +12,7 @@
 
 #define ROOT_NODE_ID 0
 #define NOT_VISITED_MARKER -1
-#define VERBOSE 1
+// #define VERBOSE 1
 
 inline void vertex_set_clear(vertex_set* list) {
     list->count = 0;
