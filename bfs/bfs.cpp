@@ -58,6 +58,7 @@ inline void top_down_step(
     vertex_set*& frontier_list,
     int* distances,
     int* mem_offset,
+    const int exploring_distance,
     const int max_threads)
 {
     // Run one step in top down approach
@@ -77,11 +78,11 @@ inline void top_down_step(
                            : g->outgoing_starts[node + 1];
 
         // attempt to add all neighbors to the new frontier
-        for (int neighbor=start_edge; neighbor<end_edge; neighbor++) {
+        for (int neighbor = start_edge; neighbor < end_edge; neighbor ++) {
             int outgoing = g->outgoing_edges[neighbor];
 
             if (distances[outgoing] == NOT_VISITED_MARKER) {
-                if (__sync_bool_compare_and_swap(distances + outgoing, NOT_VISITED_MARKER, distances[node] + 1)) {
+                if (__sync_bool_compare_and_swap(distances + outgoing, NOT_VISITED_MARKER, exploring_distance)) {
                     int current_index = frontier_list[thread_id].count++;
                     frontier_list[thread_id].vertices[current_index] = outgoing;
                 }
@@ -137,7 +138,7 @@ void bfs_top_down(Graph graph, solution* sol) {
         exploring_distance += 1;
         // Clear all except the last in frontier_list
         vertex_set_list_clear(frontier_list, max_threads);
-        top_down_step(graph, frontier_list, sol->distances, mem_offset, max_threads);
+        top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, max_threads);
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
     printf("Step %-10d frontier=%-10d %.4f sec\n", exploring_distance, frontier->count, end_time - start_time);
@@ -309,7 +310,7 @@ void bfs_hybrid(Graph graph, solution* sol)
         if (running_top_down) {
         // Clear all except the last in frontier_list
             vertex_set_list_clear(frontier_list, max_threads);
-            top_down_step(graph, frontier_list, sol->distances, mem_offset, max_threads);
+            top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, max_threads);
             frontier_count = frontier->count;
             if (num_nodes / frontier_count > SWITCH_THRESHOLD) {
                 // Switch to bottom up approach
