@@ -178,7 +178,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // each step of the BFS process.    
 
     const int max_threads {omp_get_max_threads()};
-    int chunk_size = 256;  // assuming 64 byte cache line and 1 byte bool
+    int chunk_size = 1024;  // assuming 64 byte cache line and 1 byte bool
 
     const int num_nodes = graph->num_nodes;
 
