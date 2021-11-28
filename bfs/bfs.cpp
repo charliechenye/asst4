@@ -19,16 +19,16 @@
 
 inline void initialize_distances(
     const int num_nodes, 
-    solution* sol, 
+    int* distances, 
     const int max_threads,
     const int chunk_size = 64) 
 {
     // initialize all nodes to NOT_VISITED
     #pragma omp parallel for num_threads (max_threads) schedule(static, chunk_size)
     for (int i = 0; i < num_nodes; i ++)
-        sol->distances[i] = NOT_VISITED_MARKER;
+        distances[i] = NOT_VISITED_MARKER;
 
-    sol->distances[ROOT_NODE_ID] = 0;
+    distances[ROOT_NODE_ID] = 0;
 }
 
 inline void vertex_set_clear(vertex_set* list) {
@@ -123,7 +123,7 @@ void bfs_top_down(Graph graph, solution* sol) {
 
     int* mem_offset = new int[max_threads];
 
-    initialize_distances(graph->num_nodes, sol, max_threads);
+    initialize_distances(graph->num_nodes, sol->distances, max_threads);
 
     // Alias
     vertex_set* frontier = &(frontier_list[max_threads]);
@@ -228,7 +228,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
 
     tracker_list_reset(current_frontier, num_nodes, max_threads, chunk_size);
 
-    initialize_distances(graph->num_nodes, sol, max_threads, chunk_size / 4);
+    initialize_distances(graph->num_nodes, sol->distances, max_threads, chunk_size / 4);
 
     int frontier_count = 1;
     current_frontier[ROOT_NODE_ID] = true;
@@ -275,7 +275,7 @@ void bfs_hybrid(Graph graph, solution* sol)
     int exploring_distance = 0;
     int frontier_count = 1;
 
-    initialize_distances(graph->num_nodes, sol, max_threads);
+    initialize_distances(graph->num_nodes, sol->distances, max_threads);
 
     // Intialize for Top Down approach
     const int vertex_set_list_size = max_threads + 1;
