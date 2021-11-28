@@ -16,11 +16,12 @@
 #define SWITCH_BOTTOM_UP_THRESHOLD 50
 #define SWITCH_TOP_BOTTOM_THRESHOLD 200
 #define ALLOW_SWITCH_BACK true
+#define MACHINE_CACHE_LINE_SIZE 64
 
 inline void initialize_distances(
     const int num_nodes, 
     int* distances, 
-    const int chunk_size = 64) 
+    const int chunk_size = MACHINE_CACHE_LINE_SIZE) 
 {
     // initialize all nodes to NOT_VISITED
     #pragma omp parallel for schedule(static, chunk_size)
@@ -41,14 +42,14 @@ inline void vertex_set_init(vertex_set* list, int count) {
 }
 
 inline void vertex_set_list_clear(vertex_set*& set_list, const int list_size) {
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static, MACHINE_CACHE_LINE_SIZE)
     for (int i = 0 ; i < list_size; i++){
         set_list[i].count = 0;
     }
 }
 
 inline void vertex_set_list_init(vertex_set*& set_list, const int list_size, const int count) {
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static, MACHINE_CACHE_LINE_SIZE)
     for (int i = 0 ; i < list_size; i++){
         vertex_set_init(&set_list[i], count);
     }
@@ -152,7 +153,7 @@ void bfs_top_down(Graph graph, solution* sol) {
 inline void tracker_list_reset(
     bool* next_frontier_tracker, 
     int list_len, 
-    const int schedule_chunk = 64) 
+    const int schedule_chunk = MACHINE_CACHE_LINE_SIZE) 
 {
     #pragma omp parallel for schedule(static, schedule_chunk)
     for (int i = 0; i < list_len; i ++)
@@ -165,7 +166,7 @@ inline int bottom_up_step(
     bool* next_frontier,
     int* distances, 
     const int exploring_distance, 
-    const int schedule_chunk = 64)  // assuming 64 Byte Cache Line and bool tracker
+    const int schedule_chunk = MACHINE_CACHE_LINE_SIZE)  // assuming MACHINE_CACHE_LINE_SIZE Byte Cache Line and bool tracker
 {
     int new_node_count = 0;
     // Run one step in bottom up approach
@@ -207,7 +208,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // each step of the BFS process.    
 
     const int num_threads {omp_get_max_threads()};
-    int chunk_size = 1024;  // assuming 64 byte cache line and 1 byte bool
+    int chunk_size = MACHINE_CACHE_LINE_SIZE * 16;  // assuming MACHINE_CACHE_LINE_SIZE byte cache line and 1 byte bool
 
     const int num_nodes = graph->num_nodes;
 
@@ -289,7 +290,7 @@ void bfs_hybrid(Graph graph, solution* sol)
     frontier->vertices[frontier->count++] = ROOT_NODE_ID;
 
     // Initialize for Bottom Up approach
-    int chunk_size = 1024;  // assuming 64 byte cache line and 1 byte bool
+    int chunk_size = MACHINE_CACHE_LINE_SIZE * 16;  // assuming MACHINE_CACHE_LINE_SIZE byte cache line and 1 byte bool
 
     while (num_nodes < num_threads * chunk_size) {
         chunk_size /= 2;
