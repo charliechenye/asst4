@@ -96,7 +96,7 @@ void bfs_top_down(Graph graph, solution* sol) {
     vertex_set_list_init(frontier_list, vertex_set_list_size, graph->num_nodes);
 
     // initialize all nodes to NOT_VISITED
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads (max_threads) schedule(static, 64)
     for (int i = 0; i < graph->num_nodes; i ++)
         sol->distances[i] = NOT_VISITED_MARKER;
 
@@ -202,7 +202,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     tracker_list_reset(current_frontier, num_nodes, max_threads, chunk_size);
 
     // initialize all nodes to NOT_VISITED
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads (max_threads) schedule(static, chunk_size / 4)
     for (int i = 0; i < num_nodes; i ++)
         sol->distances[i] = NOT_VISITED_MARKER;
 
