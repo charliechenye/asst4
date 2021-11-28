@@ -8,6 +8,8 @@
 #include "../common/CycleTimer.h"
 #include "../common/graph.h"
 
+#define CHUNK_SIZE 64
+
 
 // pageRank --
 //
@@ -28,7 +30,7 @@ void pageRank(Graph g, double* solution, double damping, double convergence)
 
   double* last_iteration = new double[numNodes];
   
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static, CHUNK_SIZE)
   for (int i = 0; i < numNodes; ++i) {
     solution[i] = equal_prob;
     last_iteration[i] = equal_prob;
@@ -67,13 +69,13 @@ void pageRank(Graph g, double* solution, double damping, double convergence)
 
   while (!has_converged) {
     double global_diff = 0.0;
-    double no_neighbor_node_contribution = 0.0;
+    double no_out_neighbor_node_contribution = 0.0;
 
-    #pragma omp parallel for reduction(+:no_neighbor_node_contribution)
+    #pragma omp parallel for reduction(+:no_out_neighbor_node_contribution) schedule(dynamic, CHUNK_SIZE)
     for(int i = 0; i < numNodes; ++i) {
       if (outgoing_size(g, i) == 0) {
         // node is a sink
-        no_neighbor_node_contribution += last_iteration[i] / numNodes;
+        no_out_neighbor_node_contribution += last_iteration[i] / numNodes;
       }
 
       double in_neighbor_contribution = 0.0;
@@ -87,11 +89,11 @@ void pageRank(Graph g, double* solution, double damping, double convergence)
       solution[i] = damping * in_neighbor_contribution + (1.0 - damping) / numNodes;
     }
 
-    no_neighbor_node_contribution *= damping;
+    no_out_neighbor_node_contribution *= damping;
 
-    #pragma omp parallel for reduction(+:global_diff)
+    #pragma omp parallel for reduction(+:global_diff) schedule(static, CHUNK_SIZE)
     for(int i = 0; i < numNodes; ++i) { 
-      solution[i] += no_neighbor_node_contribution;
+      solution[i] += no_out_neighbor_node_contribution;
       global_diff += std::abs(solution[i] - last_iteration[i]);
       last_iteration[i] = solution[i];
     }
