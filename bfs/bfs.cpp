@@ -362,7 +362,11 @@ void bfs_hybrid(Graph graph, solution* sol)
             frontier_count = frontier->count;
             if (frontier_count > 0 && num_nodes / frontier_count < SWITCH_THRESHOLD) {
                 running_top_down = false;
-                is_switch_step = true;
+                #pragma omp parallel for
+                for (int i = 0; i < frontier->count; i ++) {
+                    current_frontier[frontier->vertices[i]] = true;
+                }
+                is_switch_step = false;
             }
         } else {
             if (is_switch_step) {
