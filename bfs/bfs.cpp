@@ -128,7 +128,7 @@ void bfs_top_down(Graph graph, solution* sol) {
     // Alias
     vertex_set* frontier = &(frontier_list[max_threads]);
     // setup frontier with the root node
-    frontier->count = 1;
+    frontier->count = 0;
     frontier->vertices[frontier->count++] = ROOT_NODE_ID;
 
     while (frontier->count != 0) {
@@ -288,7 +288,7 @@ void bfs_hybrid(Graph graph, solution* sol)
     // Alias
     vertex_set* frontier = &(frontier_list[max_threads]);
     // setup frontier with the root node
-    frontier->count = 1;
+    frontier->count = 0;
     frontier->vertices[frontier->count++] = ROOT_NODE_ID;
 
     // Initialize for Bottom Up approach
