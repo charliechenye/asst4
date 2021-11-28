@@ -12,6 +12,7 @@
 
 #define ROOT_NODE_ID 0
 #define NOT_VISITED_MARKER -1
+#define VERBOSE 1
 
 inline void vertex_set_clear(vertex_set* list) {
     list->count = 0;
@@ -73,7 +74,7 @@ inline void top_down_step(
         }
     }
     // Collect the frontiers
-    // TODO: parallelize with atomic add on total_count
+    // DONE: parallelize with atomic add on total_count
     int total_count = 0;
     for (int i = 0; i < max_threads; i ++) {
         mem_offset[i] = total_count;
@@ -95,8 +96,9 @@ inline void top_down_step(
 void bfs_top_down(Graph graph, solution* sol) {
 
     const int max_threads {omp_get_max_threads()};
-
-    const int vertex_set_list_size = max_threads+1;
+    const int vertex_set_list_size = max_threads + 1;
+    
+    int exploring_distance = 0;
 
     vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
     vertex_set_list_init(frontier_list, vertex_set_list_size, graph->num_nodes);
@@ -120,12 +122,13 @@ void bfs_top_down(Graph graph, solution* sol) {
 #ifdef VERBOSE
         double start_time = CycleTimer::currentSeconds();
 #endif
+        exploring_distance += 1;
         // Clear all except the last in frontier_list
         vertex_set_list_clear(frontier_list, max_threads);
         top_down_step(graph, frontier_list, sol->distances, mem_offset, max_threads);
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
-    printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
+    printf("Step %-10d frontier=%-10d %.4f sec\n", exploring_distance, frontier->count, end_time - start_time);
 #endif
     }
     delete frontier_list;
@@ -201,9 +204,9 @@ void bfs_bottom_up(Graph graph, solution* sol)
     }
 
     
-    printf("# Threads=%-10d\n", max_threads);
-    printf("Chunk size=%-10d\n", chunk_size);
-    printf("# Nodes=%-10d\n", num_nodes);
+    // printf("# Threads=%-10d\n", max_threads);
+    // printf("Chunk size=%-10d\n", chunk_size);
+    // printf("# Nodes=%-10d\n", num_nodes);
     
     bool* current_frontier = new bool[graph->num_nodes];
     bool* next_frontier = new bool[graph->num_nodes];
@@ -235,7 +238,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
         next_frontier = tmp;
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
-    printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
+    printf("Step %-10d frontier=%-10d %.4f sec\n", exploring_distance, frontier_count, end_time - start_time);
 #endif
     }
 
