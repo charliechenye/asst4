@@ -13,7 +13,7 @@
 #define ROOT_NODE_ID 0
 #define NOT_VISITED_MARKER -1
 //#define VERBOSE 1
-#define SWITCH_THRESHOLD 50
+#define SWITCH_THRESHOLD 25
 
 inline void vertex_set_clear(vertex_set* list) {
     list->count = 0;
