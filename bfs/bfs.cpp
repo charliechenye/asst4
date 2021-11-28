@@ -113,7 +113,7 @@ inline void top_down_step(
 // distance to the root is stored in sol.distances.
 void bfs_top_down(Graph graph, solution* sol) {
 
-    const int max_threads {omp_get_num_threads()};
+    const int max_threads {omp_get_max_threads()};
     const int vertex_set_list_size = max_threads + 1;
     
     int exploring_distance = 0;
@@ -209,7 +209,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // code by creating subroutine bottom_up_step() that is called in
     // each step of the BFS process.    
 
-    const int max_threads {omp_get_num_threads()};
+    const int max_threads {omp_get_max_threads()};
     int chunk_size = 1024;  // assuming 64 byte cache line and 1 byte bool
 
     const int num_nodes = graph->num_nodes;
@@ -270,7 +270,7 @@ void bfs_hybrid(Graph graph, solution* sol)
     bool running_top_down = true;
 
     // Shared initialization
-    const int max_threads {omp_get_num_threads()};
+    const int max_threads {omp_get_max_threads()};
     const int num_nodes = graph->num_nodes;
     int exploring_distance = 0;
     int frontier_count = 1;
