@@ -185,6 +185,11 @@ void bfs_bottom_up(Graph graph, solution* sol)
     while (num_nodes < max_threads * chunk_size) {
         chunk_size /= 2;
     }
+
+    
+    printf("# Threads=%-10d\n", max_threads);
+    printf("Chunk size=%-10d\n", chunk_size);
+    printf("# Nodes=%-10d\n", num_nodes);
     
     bool* current_frontier = new bool[graph->num_nodes];
     bool* next_frontier = new bool[graph->num_nodes];
