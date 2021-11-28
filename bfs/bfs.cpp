@@ -13,7 +13,9 @@
 #define ROOT_NODE_ID 0
 #define NOT_VISITED_MARKER -1
 // #define VERBOSE 1
-#define SWITCH_THRESHOLD 50
+#define SWITCH_BOTTOM_UP_THRESHOLD 50
+#define SWITCH_TOP_BOTTOM_THRESHOLD 200
+#define ALLOW_SWITCH_BACK true
 
 inline void initialize_distances(
     const int num_nodes, 
@@ -311,7 +313,7 @@ void bfs_hybrid(Graph graph, solution* sol)
             vertex_set_list_clear(frontier_list, max_threads);
             top_down_step(graph, frontier_list, sol->distances, mem_offset, exploring_distance, max_threads);
             frontier_count = frontier->count;
-            if (frontier_count > 0 && num_nodes / frontier_count < SWITCH_THRESHOLD) {
+            if (frontier_count > 0 && num_nodes / frontier_count < SWITCH_BOTTOM_UP_THRESHOLD) {
                 running_top_down = false;
                 // Copy frontier to current_frontier
                 tracker_list_reset(current_frontier, num_nodes, max_threads, chunk_size);
@@ -324,11 +326,39 @@ void bfs_hybrid(Graph graph, solution* sol)
         } else {
             tracker_list_reset(next_frontier, num_nodes, max_threads, chunk_size);
             frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, 
-                                            max_threads, chunk_size);          
-            // swap pointer
-            bool * tmp = current_frontier;
-            current_frontier = next_frontier;
-            next_frontier = tmp;          
+                                            max_threads, chunk_size);
+            if (ALLOW_SWITCH_BACK && frontier_count > 0 && num_nodes / frontier_count > SWITCH_TOP_BOTTOM_THRESHOLD) {
+                running_top_down = true;
+                // Copy current_frontier back to frontier
+                vertex_set_list_clear(frontier_list, max_threads);
+                #pragma omp parallel for num_threads (max_threads) schedule(dynamic, chunk_size)
+                for(int node = 0; node < num_nodes; node ++) {
+                    if (next_frontier[node]) {
+                        const int thread_id = omp_get_thread_num();
+                        int current_index = frontier_list[thread_id].count++;
+                        frontier_list[thread_id].vertices[current_index] = node;
+                    }
+                }
+                
+                int total_count = 0;
+                for (int i = 0; i < max_threads; i ++) {
+                    mem_offset[i] = total_count;
+                    total_count += frontier_list[i].count;
+                }
+                assert (total_count == frontier_count);
+                frontier->count = frontier_count;
+
+                #pragma omp parallel for
+                for (int i = 0; i < max_threads; i ++) {
+                    memcpy(frontier->vertices + mem_offset[i], frontier_list[i].vertices, 
+                            frontier_list[i].count * sizeof(int));
+                }
+            } else {          
+                // swap pointer
+                bool * tmp = current_frontier;
+                current_frontier = next_frontier;
+                next_frontier = tmp;    
+            }      
         }
 #ifdef VERBOSE
         double end_time = CycleTimer::currentSeconds();
