@@ -135,7 +135,7 @@ inline int bottom_up_step(
     bool* next_frontier,
     int* distances, 
     const int exploring_distance, 
-    const int schedule_chunk = 100000)
+    const int schedule_chunk = 64)  // assuming 64 Byte Cache Line and bool tracker
 {
     int new_node_count = 0;
     // Run one step in bottom up approach
@@ -176,9 +176,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // code by creating subroutine bottom_up_step() that is called in
     // each step of the BFS process.    
 
-    int chunk_set = 100000;
-    if (graph->num_nodes <= 1000)
-        chunk_set = 500;
+    const int chunk_size = 64;  // assuming 64 byte cache line and 1 byte bool
 
     const int num_nodes = graph->num_nodes;
     bool* current_frontier = new bool[graph->num_nodes];
@@ -203,7 +201,7 @@ void bfs_bottom_up(Graph graph, solution* sol)
 #endif
         tracker_list_reset(next_frontier, num_nodes);
         exploring_distance += 1;
-        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, chunk_set);
+        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, chunk_size);
         // swap pointer
         bool * tmp = current_frontier;
         current_frontier = next_frontier;
