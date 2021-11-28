@@ -114,12 +114,14 @@ void bfs_top_down(Graph graph, solution* sol) {
     // Alias
     vertex_set* frontier = &(frontier_list[max_threads]);
     // setup frontier with the root node
+    frontier->count = 1;
     frontier->vertices[frontier->count++] = ROOT_NODE_ID;
     sol->distances[ROOT_NODE_ID] = 0;
 
     while (frontier->count != 0) {
 
 #ifdef VERBOSE
+        printf("Node Count %-10d", graph->num_nodes);
         double start_time = CycleTimer::currentSeconds();
 #endif
         exploring_distance += 1;
