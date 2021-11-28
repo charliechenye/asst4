@@ -5,7 +5,7 @@
 #include <string.h>
 #include <cstddef>
 #include <omp.h>
-#include <assert.h>
+// #include <assert.h>
 
 #include "../common/CycleTimer.h"
 #include "../common/graph.h"
@@ -345,7 +345,7 @@ void bfs_hybrid(Graph graph, solution* sol)
                     mem_offset[i] = total_count;
                     total_count += frontier_list[i].count;
                 }
-                assert (total_count == frontier_count);
+                // assert (total_count == frontier_count);
                 frontier->count = frontier_count;
 
                 #pragma omp parallel for
