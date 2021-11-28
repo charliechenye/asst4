@@ -248,10 +248,97 @@ void bfs_bottom_up(Graph graph, solution* sol)
     delete next_frontier;    
 }
 
-void bfs_hybrid(Graph graph, solution* sol)
+void bfs_hybrid(Graph graph, solution* sol, int switch_threshold = 50)
 {
     // CS149 students:
     //
     // You will need to implement the "hybrid" BFS here as
     // described in the handout.
+
+    // Start with top down approach
+    // Swith to bottom up approach if the frontier is significantly large
+
+    bool running_top_down = true;
+
+    // Shared initialization
+    const int max_threads {omp_get_max_threads()};
+    const int num_nodes = graph->num_nodes;
+    int exploring_distance = 0;
+    int frontier_count = 1;
+
+    // initialize all nodes to NOT_VISITED
+    #pragma omp parallel for num_threads (max_threads) schedule(static, 64)
+    for (int i = 0; i < num_nodes; i ++)
+        sol->distances[i] = NOT_VISITED_MARKER;
+    sol->distances[ROOT_NODE_ID] = 0;
+
+    // Intialize for Top Down approach
+    const int vertex_set_list_size = max_threads + 1;
+    
+    vertex_set* frontier_list = new vertex_set[vertex_set_list_size];   // first max_threads used for parallel processing, last one used for current_frontier
+    vertex_set_list_init(frontier_list, vertex_set_list_size, num_nodes);
+
+    int* mem_offset = new int[max_threads];
+
+    // Alias
+    vertex_set* frontier = &(frontier_list[max_threads]);
+    // setup frontier with the root node
+    frontier->count = 1;
+    frontier->vertices[frontier->count++] = ROOT_NODE_ID;
+
+    // Initialize for Bottom Up approach
+    int chunk_size = 1024;  // assuming 64 byte cache line and 1 byte bool
+
+    while (num_nodes < max_threads * chunk_size) {
+        chunk_size /= 2;
+    }
+    bool* current_frontier = new bool[graph->num_nodes];
+    bool* next_frontier = new bool[graph->num_nodes];
+
+    tracker_list_reset(current_frontier, num_nodes, max_threads, chunk_size);
+
+    // Run BFS
+    while (frontier_count != 0) {
+
+#ifdef VERBOSE
+        double start_time = CycleTimer::currentSeconds();
+#endif
+        exploring_distance += 1;
+        if (running_top_down) {
+        // Clear all except the last in frontier_list
+            vertex_set_list_clear(frontier_list, max_threads);
+            top_down_step(graph, frontier_list, sol->distances, mem_offset, max_threads);
+            frontier_count = frontier->count;
+            if (num_nodes / frontier_count > switch_threshold) {
+                // Switch to bottom up approach
+                // Initialize current_frontier list
+                #pragma omp parallel for
+                for (int i = 0; i < frontier->count; i ++) {
+                    int node = frontier->vertices[i]; 
+                    current_frontier[node] = true;
+                }
+                running_top_down = false;
+            }
+        } else {
+            tracker_list_reset(next_frontier, num_nodes, max_threads, chunk_size);
+            frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, 
+                                            max_threads, chunk_size);
+            // swap pointer
+            bool * tmp = current_frontier;
+            current_frontier = next_frontier;
+            next_frontier = tmp;
+        }
+#ifdef VERBOSE
+        double end_time = CycleTimer::currentSeconds();
+        printf("Step %-10d frontier=%-10d %.4f sec\n", exploring_distance, frontier->count, end_time - start_time);
+#endif
+    }
+
+    // Clean up for Top Down approach
+    delete frontier_list;
+    delete mem_offset;
+
+    // Clean up for Bottom Up approach
+    delete current_frontier;
+    delete next_frontier;   
 }
