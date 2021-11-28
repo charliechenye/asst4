@@ -135,11 +135,12 @@ inline int bottom_up_step(
     bool* next_frontier,
     int* distances, 
     const int exploring_distance, 
+    const int max_threads,
     const int schedule_chunk = 64)  // assuming 64 Byte Cache Line and bool tracker
 {
     int new_node_count = 0;
     // Run one step in bottom up approach
-    #pragma omp parallel for reduction(+:new_node_count) schedule(dynamic, schedule_chunk)
+    #pragma omp parallel for reduction(+:new_node_count) num_threads (max_threads) schedule(dynamic, schedule_chunk)
     for(int node = 0; node < g->num_nodes; node ++) {
         if (distances[node] == NOT_VISITED_MARKER) {
             //explore all incoming edges to node
@@ -176,9 +177,15 @@ void bfs_bottom_up(Graph graph, solution* sol)
     // code by creating subroutine bottom_up_step() that is called in
     // each step of the BFS process.    
 
-    const int chunk_size = 64;  // assuming 64 byte cache line and 1 byte bool
+    const int max_threads {omp_get_max_threads()};
+    int chunk_size = 64;  // assuming 64 byte cache line and 1 byte bool
 
     const int num_nodes = graph->num_nodes;
+
+    while (num_nodes < max_threads * chunk_size) {
+        chunk_size /= 2;
+    }
+    
     bool* current_frontier = new bool[graph->num_nodes];
     bool* next_frontier = new bool[graph->num_nodes];
 
@@ -201,7 +208,8 @@ void bfs_bottom_up(Graph graph, solution* sol)
 #endif
         tracker_list_reset(next_frontier, num_nodes);
         exploring_distance += 1;
-        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, chunk_size);
+        frontier_count = bottom_up_step(graph, current_frontier, next_frontier, sol->distances, exploring_distance, 
+                                        max_threads, chunk_size);
         // swap pointer
         bool * tmp = current_frontier;
         current_frontier = next_frontier;
