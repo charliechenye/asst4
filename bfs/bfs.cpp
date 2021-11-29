@@ -42,14 +42,14 @@ inline void vertex_set_init(vertex_set* list, int count) {
 }
 
 inline void vertex_set_list_clear(vertex_set*& set_list, const int list_size) {
-    #pragma omp parallel for schedule(static, MACHINE_CACHE_LINE_SIZE)
+    #pragma omp parallel for
     for (int i = 0 ; i < list_size; i++){
         set_list[i].count = 0;
     }
 }
 
 inline void vertex_set_list_init(vertex_set*& set_list, const int list_size, const int count) {
-    #pragma omp parallel for schedule(static, MACHINE_CACHE_LINE_SIZE)
+    #pragma omp parallel for
     for (int i = 0 ; i < list_size; i++){
         vertex_set_init(&set_list[i], count);
     }
